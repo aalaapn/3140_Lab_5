@@ -15,6 +15,13 @@
 #include "MK64F12.h"
 #include  <stdlib.h>
 
+typedef struct time{
+    unsigned int sec;
+    unsigned int msec;
+    }realtime_t;
+    
+extern realtime_t *current_time;
+
 typedef struct process_state process_t;
    /* opaque definition of process type; you must provide this
       implementation.

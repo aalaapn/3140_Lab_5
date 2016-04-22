@@ -5,6 +5,9 @@
 /* Global process pointers */
 process_t* current_process = NULL;	/* Currently-running process */
 process_t* process_queue = NULL;	/* Points to head of process queue */
+/*Global time variable*/
+realtime_t* current_time;
+int process_deadline_miss;
 
 /*------------------------------------------------------------------------
  * process_state
@@ -19,7 +22,14 @@ process_t* process_queue = NULL;	/* Points to head of process queue */
 struct process_state {
 	unsigned int sp;				/* Stack pointer for process */
 	struct process_state* next;		/* Pointer to next process in queue */
+	realtime_t* arrival time;
+	realtime_t* deadline;
 };
+
+/*-----------------------------------------------------------------------
+ *implementation of current time
+ *-----------------------------------------------------------------------*/
+
 
 
 /*------------------------------------------------------------------------
@@ -27,18 +37,30 @@ struct process_state {
  *----------------------------------------------------------------------*/
 
 /* Add process p to the tail of process queue */
-void add_to_tail(process_t** head_ref, process_t* p) {
+void add_to_tail(process_t** head_ref, process_t* p, reltime_t *deadline) {
 	/* Get pointer to the current head node */
 	process_t* current = *head_ref;
+	process_t* temp;
 	
 	/* If queue is currently empty, replace it with the new process */
 	if (current == NULL) { *head_ref = p; }
 	
 	/* Otherwise, find the end of the list and append the new node */
 	else {
-		while (current->next != NULL) { current = current->next; }
-		/* At this point, current points to the last node in the list */
-		current->next = p;
+		if (deadline ==NULL){
+			while (current->next != NULL) { current = current->next; }
+			/* At this point, current points to the last node in the list */
+			current->next = p;
+		}
+		else{
+			while(current->next !==NULL && current->deadline < current->next->deadline){
+				current = current->next;
+				
+			}
+			temp = current->next;
+			current->next = p;
+			p->next = temp;
+		}
 	}
 }
 
@@ -91,7 +113,20 @@ int process_create(void (*f)(void), int n) {
   *    Launch concurrent execution of processes (must be created first).
   *----------------------------------------------------------------------*/
   
-void process_start(void) {
+void process_start(void) {\
+	/*Piazza code*/
+	NVIC_SetPriority(SVCall_IRQn, 1);
+	NVIC_SetPriority(PIT0_IRQn, 1);
+	NVIC_SetPriority(PIT1_IRQn, 0);
+	
+	PIT->CHANNEL[0].TCTRL = 1; // Disable PIT0
+	__enable_irq(); // Enable global interrupts
+	// your busy-wait code here
+	__disable_irq(); // Disable global interrupts
+	PIT->CHANNEL[0].TCTRL = 3; // Enable PIT0
+
+
+	
 	/* Set up Timer A (triggers context switch) */
 	SIM->SCGC6 |= SIM_SCGC6_PIT_MASK; // CLOCK PIT
 	PIT->MCR = 0x0;	// turn on PIT
@@ -136,4 +171,30 @@ unsigned int process_select(unsigned int cursp) {
 		return current_process->sp;
 	}
 }
-
+/*-----------------------------------------
+ *Function for Lab 5
+ *-----------------------------------------*/
+procces_rt_create(void (*f)(void), int n, realtime_t *start, realtime_t *work, real_time_t *deadline){
+	//task requres "work" miliseconds to complete (estimate of worst case execution time)
+	//relative deadline of "deadline" miliseconds
+	//n is the stack size for the task.
+	
+	//stuff below taken from process_create
+	process_t* new_proc = (process_t*) malloc(sizeof(process_t));
+	if (new_proc == NULL) { return -1; }	/* malloc failed */
+	
+	/* Allocate and initialize stack space for process */
+	//new_proc = (process_t*) our_malloc(sizeof(process_t)/4);
+	new_proc->sp = process_init(f, n);
+	
+	if (new_proc->sp == 0) { return -1; }	/* process_init failed */
+	
+	/* Add new process to process queue */
+	new_proc->next = NULL;
+	add_to_tail(&process_queue, new_proc);
+	return 0;	/* Successfully created process and bookkeeping */
+	//end stuff taken from process_create
+	
+	
+	
+}
