@@ -22,7 +22,7 @@ int process_deadline_miss;
 struct process_state {
 	unsigned int sp;				/* Stack pointer for process */
 	struct process_state* next;		/* Pointer to next process in queue */
-	realtime_t* arrival time;
+	realtime_t* arrival_time;
 	realtime_t* deadline;
 };
 
@@ -37,7 +37,7 @@ struct process_state {
  *----------------------------------------------------------------------*/
 
 /* Add process p to the tail of process queue */
-void add_to_tail(process_t** head_ref, process_t* p, reltime_t *deadline) {
+void add_to_tail(process_t** head_ref, process_t* p, realtime_t *deadline) {
 	/* Get pointer to the current head node */
 	process_t* current = *head_ref;
 	process_t* temp;
@@ -53,7 +53,7 @@ void add_to_tail(process_t** head_ref, process_t* p, reltime_t *deadline) {
 			current->next = p;
 		}
 		else{
-			while(current->next !==NULL && current->deadline < current->next->deadline){
+			while(current->next !=NULL && current->deadline < current->next->deadline){
 				current = current->next;
 				
 			}
@@ -103,7 +103,7 @@ int process_create(void (*f)(void), int n) {
 	
 	/* Add new process to process queue */
 	new_proc->next = NULL;
-	add_to_tail(&process_queue, new_proc);
+	add_to_tail(&process_queue, new_proc,new_proc->deadline);
 	return 0;	/* Successfully created process and bookkeeping */
 }
  
@@ -147,11 +147,11 @@ void PIT1_IRQHandler(void)
 {
 	PIT->CHANNEL[1].TCTRL &= ~PIT_TCTRL_TEN_MASK; //disabling the timer so that a new value can be loaded
 	
-	if(current_time.msec<1000){
-	current_time.msec+=1;
+	if(current_time->msec<1000){
+	current_time->msec+=1;
 	}else{
-	current_time.sec+=1;
-	current_time.msec=0;
+	current_time->sec+=1;
+	current_time->msec=0;
 	}
 	PIT->CHANNEL[1].TFLG = 1; //Clear interrupts
 	PIT->CHANNEL[1].LDVAL = 20900; //reload value
@@ -186,7 +186,7 @@ unsigned int process_select(unsigned int cursp) {
 	else {
 		/* Save running process SP and add back to process queue to run later */
 		current_process->sp = cursp;
-		add_to_tail(&process_queue, current_process);
+		add_to_tail(&process_queue, current_process, current_process->deadline);
 		
 		/* Return next process from queue */
 		current_process = take_from_head(&process_queue);
@@ -196,7 +196,7 @@ unsigned int process_select(unsigned int cursp) {
 /*-----------------------------------------
  *Function for Lab 5
  *-----------------------------------------*/
-procces_rt_create(void (*f)(void), int n, realtime_t *start, realtime_t *work, real_time_t *deadline){
+int procces_rt_create(void (*f)(void), int n, realtime_t *start, realtime_t *work, realtime_t *deadline){
 	//task requres "work" miliseconds to complete (estimate of worst case execution time)
 	//relative deadline of "deadline" miliseconds
 	//n is the stack size for the task.
@@ -213,7 +213,7 @@ procces_rt_create(void (*f)(void), int n, realtime_t *start, realtime_t *work, r
 	
 	/* Add new process to process queue */
 	new_proc->next = NULL;
-	add_to_tail(&process_queue, new_proc);
+	add_to_tail(&process_queue, new_proc, new_proc->deadline);
 	return 0;	/* Successfully created process and bookkeeping */
 	//end stuff taken from process_create
 	
