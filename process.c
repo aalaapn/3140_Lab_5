@@ -143,7 +143,7 @@ void process_start(void) {\
 	process_begin();	/* In assembly, actually launches processes */
 }
 
-void PIT0_IRQHandler(void)
+void PIT1_IRQHandler(void)
 {
 	PIT->CHANNEL[1].TCTRL &= ~PIT_TCTRL_TEN_MASK; //disabling the timer so that a new value can be loaded
 	
