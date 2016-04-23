@@ -132,9 +132,31 @@ void process_start(void) {\
 	PIT->MCR = 0x0;	// turn on PIT
 	PIT->CHANNEL[0].LDVAL = 0x0100000;
 	PIT->CHANNEL[0].TCTRL  = 3; //|= (1 << 28) | (1<<29) | (1<<30);	
+	
+	/*Set up Timer B (tracks real time elapsed*/
+	//Use a PIT timer, every milisecond it generates an interrupt 
+	
+	PIT->CHANNEL[1].LDVAL = 0x20900; //one milisecond
+	PIT->CHANNEL[1].TCTRL = 1; //enable timer
 
 	NVIC_EnableIRQ(PIT0_IRQn); //Enable interrupts!!!!!!!!!!!
 	process_begin();	/* In assembly, actually launches processes */
+}
+
+void PIT0_IRQHandler(void)
+{
+	PIT->CHANNEL[1].TCTRL &= ~PIT_TCTRL_TEN_MASK; //disabling the timer so that a new value can be loaded
+	
+	if(current_time.msec<1000){
+	current_time.msec+=1;
+	}else{
+	current_time.sec+=1;
+	current_time.msec=0;
+	}
+	PIT->CHANNEL[1].TFLG = 1; //Clear interrupts
+	PIT->CHANNEL[1].LDVAL = 20900; //reload value
+	PIT->CHANNEL[1].TCTRL |= PIT_TCTRL_TEN_MASK;//enable the timer so that new timer can count down
+	PIT_TCTRL1 |= PIT_TCTRL_TIE_MASK;//enable timer interrupts  
 }
 
  /*------------------------------------------------------------------------
