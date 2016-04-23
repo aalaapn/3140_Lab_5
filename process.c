@@ -133,7 +133,7 @@ void process_start(void) {\
 	//Use a PIT timer, every milisecond it generates an interrupt 
 	
 	PIT->CHANNEL[1].LDVAL = 0x20900; //one milisecond
-	PIT->CHANNEL[1].TCTRL = 1; //enable timer
+	PIT->CHANNEL[1].TCTRL = 3; //enable timer
 
 	NVIC_EnableIRQ(PIT0_IRQn); //Enable interrupts!!!!!!!!!!!
 	process_begin();	/* In assembly, actually launches processes */
@@ -186,17 +186,19 @@ unsigned int process_select(unsigned int cursp) {
 		  return 0; 
 		}	/* No processes left */
 		else {
-			PIT->CHANNEL[0].TCTRL = 1; // Disable PIT0
-			__enable_irq(); // Enable global interrupts
-			// your busy-wait code here
 			if(process_queue_rt != NULL){ //check if there are processes on the real time queue
+				PIT->CHANNEL[0].TCTRL = 1; // Disable PIT0
+				__enable_irq(); // Enable global interrupts
+				// your busy-wait code here
 				current_process = take_from_head(&process_queue_rt);
+				
+				__disable_irq(); // Disable global interrupts
+				PIT->CHANNEL[0].TCTRL = 3; // Enable PIT0
+				
 				return current_process->sp;
 			}
-			__disable_irq(); // Disable global interrupts
-			PIT->CHANNEL[0].TCTRL = 3; // Enable PIT0
 			
-			else{
+			else {
 				current_process = take_from_head(&process_queue);
 				return current_process->sp;
 			}
@@ -222,6 +224,7 @@ int procces_rt_create(void (*f)(void), int n, realtime_t *start, realtime_t *wor
 	//relative deadline of "deadline" miliseconds
 	//n is the stack size for the task.
 	
+	
 	//stuff below taken from process_create
 	process_t* new_proc = (process_t*) malloc(sizeof(process_t));
 	if (new_proc == NULL) { return -1; }	/* malloc failed */
@@ -234,8 +237,15 @@ int procces_rt_create(void (*f)(void), int n, realtime_t *start, realtime_t *wor
 	
 	/* Add new process to process queue */
 	new_proc->next = NULL;
-	new_proc->arrival_time = current_time + start; //setting arrival time
-	new_proc->deadline = deadline+arrival_time; //setting deadline
+	
+	//setting arrival_time
+	new_proc->arrival_time->msec = current_time->msec + start->msec;
+	new_proc->arrival_time->sec = current_time->sec + start->sec;
+	
+	//setting deadline
+	new_proc->deadline->msec = deadline->msec + new_proc->arrival_time->msec;
+	new_proc->deadline->msec = deadline->sec + new_proc->arrival_time->sec;
+	
 	add_to_tail(&process_queue_rt, new_proc, deadline);
 	return 0;	/* Successfully created process and bookkeeping */
 	//end stuff taken from process_create
