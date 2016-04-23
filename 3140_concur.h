@@ -21,6 +21,8 @@ typedef struct time{
     }realtime_t;
     
 extern realtime_t *current_time;
+extern int process_deadline_miss;
+extern int procces_rt_create (void (*f)(void), int n, realtime_t *start, realtime_t *work, realtime_t *deadline);
 
 typedef struct process_state process_t;
    /* opaque definition of process type; you must provide this

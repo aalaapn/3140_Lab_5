@@ -5,8 +5,10 @@
 /* Global process pointers */
 process_t* current_process = NULL;	/* Currently-running process */
 process_t* process_queue = NULL;	/* Points to head of process queue */
+process_t* process_queue_rt = NULL; /*Point to head of process queue for rt processes*/
 /*Global time variable*/
 realtime_t* current_time;
+
 int process_deadline_miss;
 
 /*------------------------------------------------------------------------
@@ -22,7 +24,7 @@ int process_deadline_miss;
 struct process_state {
 	unsigned int sp;				/* Stack pointer for process */
 	struct process_state* next;		/* Pointer to next process in queue */
-	realtime_t* arrival time;
+	realtime_t* arrival_time;
 	realtime_t* deadline;
 };
 
@@ -37,7 +39,7 @@ struct process_state {
  *----------------------------------------------------------------------*/
 
 /* Add process p to the tail of process queue */
-void add_to_tail(process_t** head_ref, process_t* p, reltime_t *deadline) {
+void add_to_tail(process_t** head_ref, process_t* p, realtime_t *deadline) {
 	/* Get pointer to the current head node */
 	process_t* current = *head_ref;
 	process_t* temp;
@@ -53,7 +55,7 @@ void add_to_tail(process_t** head_ref, process_t* p, reltime_t *deadline) {
 			current->next = p;
 		}
 		else{
-			while(current->next !==NULL && current->deadline < current->next->deadline){
+			while(current->next !=NULL && current->deadline < current->next->deadline){
 				current = current->next;
 				
 			}
@@ -103,7 +105,7 @@ int process_create(void (*f)(void), int n) {
 	
 	/* Add new process to process queue */
 	new_proc->next = NULL;
-	add_to_tail(&process_queue, new_proc);
+	add_to_tail(&process_queue, new_proc, NULL);
 	return 0;	/* Successfully created process and bookkeeping */
 }
  
@@ -118,12 +120,6 @@ void process_start(void) {\
 	NVIC_SetPriority(SVCall_IRQn, 1);
 	NVIC_SetPriority(PIT0_IRQn, 1);
 	NVIC_SetPriority(PIT1_IRQn, 0);
-	
-	PIT->CHANNEL[0].TCTRL = 1; // Disable PIT0
-	__enable_irq(); // Enable global interrupts
-	// your busy-wait code here
-	__disable_irq(); // Disable global interrupts
-	PIT->CHANNEL[0].TCTRL = 3; // Enable PIT0
 
 
 	
@@ -132,9 +128,31 @@ void process_start(void) {\
 	PIT->MCR = 0x0;	// turn on PIT
 	PIT->CHANNEL[0].LDVAL = 0x0100000;
 	PIT->CHANNEL[0].TCTRL  = 3; //|= (1 << 28) | (1<<29) | (1<<30);	
+	
+	/*Set up Timer B (tracks real time elapsed*/
+	//Use a PIT timer, every milisecond it generates an interrupt 
+	
+	PIT->CHANNEL[1].LDVAL = 0x20900; //one milisecond
+	PIT->CHANNEL[1].TCTRL = 1; //enable timer
 
 	NVIC_EnableIRQ(PIT0_IRQn); //Enable interrupts!!!!!!!!!!!
 	process_begin();	/* In assembly, actually launches processes */
+}
+
+void PIT0_IRQHandler1(void)
+{
+	PIT->CHANNEL[1].TCTRL &= ~PIT_TCTRL_TEN_MASK; //disabling the timer so that a new value can be loaded
+	
+	if(current_time->msec<1000){
+	current_time->msec+=1;
+	}else{
+	current_time->sec+=1;
+	current_time->msec=0;
+	}
+	PIT->CHANNEL[1].TFLG = 1; //Clear interrupts
+	PIT->CHANNEL[1].LDVAL = 20900; //reload value
+	PIT->CHANNEL[1].TCTRL |= PIT_TCTRL_TEN_MASK;//enable the timer so that new timer can count down
+	PIT_TCTRL1 |= PIT_TCTRL_TIE_MASK;//enable timer interrupts  
 }
 
  /*------------------------------------------------------------------------
@@ -147,16 +165,41 @@ void process_start(void) {\
   *----------------------------------------------------------------------*/
 
 unsigned int process_select(unsigned int cursp) {
+	/* New things added:
+	*Implements two-level scheduling
+	*There is a real-time scheduling queue that has a higher priority than
+	*the normal ready queue used for ordinary concurrent processes.
+	*
+	*Keeps track of the number of tasks that missed their deadlines in a
+	global variable process_deadline_miss.
+	*/
 	/* cursp==0 -> No process currently running */
+	
 	if (cursp == 0) {
+		if(current_process->deadline != NULL){
+			if(current_process->deadline > current_time){ //check if a process met its deadline
+					process_deadline_miss++;
+				}
+		}
 		current_process = NULL;
-		if (process_queue == NULL) { 
+		if (process_queue == NULL && process_queue_rt == NULL) { 
 		  return 0; 
 		}	/* No processes left */
 		else {
-			/* Return next process from queue */
-			current_process = take_from_head(&process_queue);
-			return current_process->sp;
+			PIT->CHANNEL[0].TCTRL = 1; // Disable PIT0
+			__enable_irq(); // Enable global interrupts
+			// your busy-wait code here
+			if(process_queue_rt != NULL){ //check if there are processes on the real time queue
+				current_process = take_from_head(&process_queue_rt);
+				return current_process->sp;
+			}
+			__disable_irq(); // Disable global interrupts
+			PIT->CHANNEL[0].TCTRL = 3; // Enable PIT0
+			
+			else{
+				current_process = take_from_head(&process_queue);
+				return current_process->sp;
+			}
 		}
 	}
 	
@@ -164,7 +207,7 @@ unsigned int process_select(unsigned int cursp) {
 	else {
 		/* Save running process SP and add back to process queue to run later */
 		current_process->sp = cursp;
-		add_to_tail(&process_queue, current_process);
+		add_to_tail(&process_queue, current_process, NULL);
 		
 		/* Return next process from queue */
 		current_process = take_from_head(&process_queue);
@@ -174,7 +217,7 @@ unsigned int process_select(unsigned int cursp) {
 /*-----------------------------------------
  *Function for Lab 5
  *-----------------------------------------*/
-procces_rt_create(void (*f)(void), int n, realtime_t *start, realtime_t *work, real_time_t *deadline){
+int procces_rt_create(void (*f)(void), int n, realtime_t *start, realtime_t *work, realtime_t *deadline){
 	//task requres "work" miliseconds to complete (estimate of worst case execution time)
 	//relative deadline of "deadline" miliseconds
 	//n is the stack size for the task.
@@ -191,10 +234,11 @@ procces_rt_create(void (*f)(void), int n, realtime_t *start, realtime_t *work, r
 	
 	/* Add new process to process queue */
 	new_proc->next = NULL;
-	add_to_tail(&process_queue, new_proc);
+	new_proc->arrival_time = current_time + start; //setting arrival time
+	new_proc->deadline = deadline+arrival_time; //setting deadline
+	add_to_tail(&process_queue_rt, new_proc, deadline);
 	return 0;	/* Successfully created process and bookkeeping */
 	//end stuff taken from process_create
-	
 	
 	
 }
