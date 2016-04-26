@@ -28,12 +28,6 @@ struct process_state {
 	realtime_t* deadline;
 };
 
-/*-----------------------------------------------------------------------
- *implementation of current time
- *-----------------------------------------------------------------------*/
-
-
-
 /*------------------------------------------------------------------------
  * Process queue management convenience functions
  *----------------------------------------------------------------------*/
@@ -139,6 +133,9 @@ void process_start(void) {\
 	process_begin();	/* In assembly, actually launches processes */
 }
 
+/*-----------------------------------------------------------------------
+ *implementation of current time
+ *-----------------------------------------------------------------------*/
 void PIT0_IRQHandler1(void)
 {
 	PIT->CHANNEL[1].TCTRL &= ~PIT_TCTRL_TEN_MASK; //disabling the timer so that a new value can be loaded
@@ -187,8 +184,10 @@ unsigned int process_select(unsigned int cursp) {
 		}	/* No processes left */
 		else {
 			if(process_queue_rt != NULL){ //check if there are processes on the real time queue
+				
 				PIT->CHANNEL[0].TCTRL = 1; // Disable PIT0
 				__enable_irq(); // Enable global interrupts
+				while((current_time->msec+current_time->sec*1000) < (process_queue_rt->arrival_time->msec+process_queue_rt->arrival_time->sec*1000)) {};
 				// your busy-wait code here
 				current_process = take_from_head(&process_queue_rt);
 				
@@ -219,7 +218,7 @@ unsigned int process_select(unsigned int cursp) {
 /*-----------------------------------------
  *Function for Lab 5
  *-----------------------------------------*/
-int procces_rt_create(void (*f)(void), int n, realtime_t *start, realtime_t *work, realtime_t *deadline){
+int process_rt_create(void (*f)(void), int n, realtime_t *start, realtime_t *work, realtime_t *deadline){
 	//task requres "work" miliseconds to complete (estimate of worst case execution time)
 	//relative deadline of "deadline" miliseconds
 	//n is the stack size for the task.
