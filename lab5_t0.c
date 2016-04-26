@@ -23,8 +23,8 @@
 
  
 /* Stack space for processes */
-#define NRT_STACK 10
-#define RT_STACK  10
+#define NRT_STACK 80
+#define RT_STACK  80
  
 
 

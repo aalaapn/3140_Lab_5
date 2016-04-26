@@ -6,6 +6,7 @@
 process_t* current_process = NULL;	/* Currently-running process */
 process_t* process_queue = NULL;	/* Points to head of process queue */
 process_t* process_queue_rt = NULL; /*Point to head of process queue for rt processes*/
+
 /*Global time variable*/
 realtime_t* current_time;
 
@@ -109,7 +110,7 @@ int process_create(void (*f)(void), int n) {
   *    Launch concurrent execution of processes (must be created first).
   *----------------------------------------------------------------------*/
   
-void process_start(void) {\
+void process_start(void) {
 	/*Piazza code*/
 	NVIC_SetPriority(SVCall_IRQn, 1);
 	NVIC_SetPriority(PIT0_IRQn, 1);
@@ -131,6 +132,7 @@ void process_start(void) {\
 
 	NVIC_EnableIRQ(PIT0_IRQn); //Enable interrupts!!!!!!!!!!!
 	process_begin();	/* In assembly, actually launches processes */
+	__disable_irq();
 }
 
 /*-----------------------------------------------------------------------
@@ -223,8 +225,6 @@ int process_rt_create(void (*f)(void), int n, realtime_t *start, realtime_t *wor
 	//relative deadline of "deadline" miliseconds
 	//n is the stack size for the task.
 	
-	
-	//stuff below taken from process_create
 	process_t* new_proc = (process_t*) malloc(sizeof(process_t));
 	if (new_proc == NULL) { return -1; }	/* malloc failed */
 	
@@ -238,8 +238,8 @@ int process_rt_create(void (*f)(void), int n, realtime_t *start, realtime_t *wor
 	new_proc->next = NULL;
 	
 	//setting arrival_time
-	new_proc->arrival_time->msec = current_time->msec + start->msec;
-	new_proc->arrival_time->sec = current_time->sec + start->sec;
+	new_proc->arrival_time->msec = start->msec;
+	new_proc->arrival_time->sec = start->sec;
 	
 	//setting deadline
 	new_proc->deadline->msec = deadline->msec + new_proc->arrival_time->msec;
@@ -247,7 +247,10 @@ int process_rt_create(void (*f)(void), int n, realtime_t *start, realtime_t *wor
 	
 	add_to_tail(&process_queue_rt, new_proc, deadline);
 	return 0;	/* Successfully created process and bookkeeping */
-	//end stuff taken from process_create
 	
+	//real time process ariving later that zero
+	//real time process after realtime with earlier deadline
+	//only ordinary processes
+	//change quantum, interleaving
 	
 }
