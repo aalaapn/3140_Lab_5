@@ -23,12 +23,12 @@ int process_deadline_miss;
  *            linked-list node (for use in a process queue)
  *----------------------------------------------------------------------*/
 
-struct process_state {
+ struct process_state {
 	unsigned int sp;				/* Stack pointer for process */
 	struct process_state* next;		/* Pointer to next process in queue */
-	realtime_t* arrival_time;
-	realtime_t* deadline;
-};
+ 	realtime_t* arrival_time;
+ 	realtime_t* deadline;
+ };
 
 /*-----------------------------------------------------------------------
  *implementation of current time
@@ -41,46 +41,46 @@ struct process_state {
  *----------------------------------------------------------------------*/
 
 /* Add process p to the tail of process queue */
-void add_to_tail(process_t** head_ref, process_t* p, realtime_t *deadline) {
+ void add_to_tail(process_t** head_ref, process_t* p, realtime_t *deadline) {
 	/* Get pointer to the current head node */
-	process_t* current = *head_ref;
-	process_t* temp;
-	
+ 	process_t* current = *head_ref;
+ 	process_t* temp;
+
 	/* If queue is currently empty, replace it with the new process */
-	if (current == NULL) { *head_ref = p; }
-	
+ 	if (current == NULL) { *head_ref = p; }
+
 	/* Otherwise, find the end of the list and append the new node */
-	else {
-		if (deadline ==NULL){
-			while (current->next != NULL) { current = current->next; }
+ 	else {
+ 		if (deadline ==NULL){
+ 			while (current->next != NULL) { current = current->next; }
 			/* At this point, current points to the last node in the list */
-			current->next = p;
-		}
-		else{
-			while(current->next !=NULL && current->deadline < current->next->deadline){
-				current = current->next;
-				
-			}
-			temp = current->next;
-			current->next = p;
-			p->next = temp;
-		}
-	}
-}
+ 			current->next = p;
+ 		}
+ 		else{
+ 			while(current->next !=NULL && current->deadline < current->next->deadline){
+ 				current = current->next;
+
+ 			}
+ 			temp = current->next;
+ 			current->next = p;
+ 			p->next = temp;
+ 		}
+ 	}
+ }
 
 /* Remove and return (pop) process from head of process queue */
-process_t* take_from_head(process_t** head_ref) {
+ process_t* take_from_head(process_t** head_ref) {
 	/* We want to return the current head process */
-	process_t* result = *head_ref;
-	
+ 	process_t* result = *head_ref;
+
 	/* Remove the first process, unless the queue is empty */
-	if (result != NULL) {
+ 	if (result != NULL) {
 		*head_ref = result->next;	/* New head is the next process in queue */
 		result->next = NULL;		/* Removed process no longer points to queue */
-	}
-	
-	return result;
-}
+ 	}
+
+ 	return result;
+ }
 
 
 /*------------------------------------------------------------------------
@@ -93,25 +93,25 @@ process_t* take_from_head(process_t** head_ref) {
  *----------------------------------------------------------------------*/
 
 
-int process_create(void (*f)(void), int n) {
+ int process_create(void (*f)(void), int n) {
 	/* Allocate bookkeeping structure for process */
 	//process_t* new_proc;
-	process_t* new_proc = (process_t*) malloc(sizeof(process_t));
-  if (new_proc == NULL) { return -1; }	/* malloc failed */
-	
+ 	process_t* new_proc = (process_t*) malloc(sizeof(process_t));
+ 	if (new_proc == NULL) { return -1; }	/* malloc failed */
+
 	/* Allocate and initialize stack space for process */
 	//new_proc = (process_t*) our_malloc(sizeof(process_t)/4);
-	new_proc->sp = process_init(f, n);
-	
-	new_proc->deadline=NULL;
-	new_proc->arrival_time=NULL;
-	
+ 	new_proc->sp = process_init(f, n);
+
+ 	new_proc->deadline=NULL;
+ 	new_proc->arrival_time=NULL;
+
 	if (new_proc->sp == 0) { return -1; }	/* process_init failed */
-	/* Add new process to process queue */
-	new_proc->next = NULL;
-	add_to_tail(&process_queue, new_proc, NULL);
+		/* Add new process to process queue */
+ 	new_proc->next = NULL;
+ 	add_to_tail(&process_queue, new_proc, NULL);
 	return 0;	/* Successfully created process and bookkeeping */
-}
+ }
  
  
  /*------------------------------------------------------------------------
@@ -119,12 +119,8 @@ int process_create(void (*f)(void), int n) {
   *    Launch concurrent execution of processes (must be created first).
   *----------------------------------------------------------------------*/
   
-void process_start(void) {\
-	/*Piazza code*/
-	
+  void process_start(void) {\
 
-
-	
 	/* Set up Timer A (triggers context switch) */
 	SIM->SCGC6 |= SIM_SCGC6_PIT_MASK; // CLOCK PIT
 	PIT->MCR = 0x0;	// turn on PIT
@@ -160,18 +156,18 @@ void PIT1_IRQHandler(void)
 	PIT->CHANNEL[1].TCTRL &= ~PIT_TCTRL_TEN_MASK; //disabling the timer so that a new value can be loaded
 	
 	if(current_time->msec<1000){
-	current_time->msec+=1;
+		current_time->msec+=1;
 	}else{
-	current_time->sec+=1;
-	current_time->msec=0;
+		current_time->sec+=1;
+		current_time->msec=0;
 	}
 	
 	
 	if(process_waiting_rt!=NULL){
-	process_t* process= take_from_head(&process_waiting_rt);
-	if((process->arrival_time->msec+ process->arrival_time->sec*1000)<(current_time->msec+current_time->sec*1000)){
-	add_to_tail(&process_queue_rt,process,process->deadline);
-	}	
+		process_t* process= take_from_head(&process_waiting_rt);
+		if((process->arrival_time->msec+ process->arrival_time->sec*1000)<(current_time->msec+current_time->sec*1000)){
+			add_to_tail(&process_queue_rt,process,process->deadline);
+		}	
 	}	
 	PIT->CHANNEL[1].TFLG = 1; //Clear interrupts
 	PIT->CHANNEL[1].LDVAL = 20900; //reload value
@@ -188,7 +184,7 @@ void PIT1_IRQHandler(void)
   *           is no process currently running
   *----------------------------------------------------------------------*/
 
-unsigned int process_select(unsigned int cursp) {
+  unsigned int process_select(unsigned int cursp) {
 	/* New things added:
 	*Implements two-level scheduling
 	*There is a real-time scheduling queue that has a higher priority than
@@ -204,15 +200,15 @@ unsigned int process_select(unsigned int cursp) {
 	if (cursp == 0) {
 		if(current_process->deadline != NULL){
 			if(current_process->deadline > current_time){ //check if a process met its deadline
-					process_deadline_miss++;
-				}
+				process_deadline_miss++;
+			}
 		}
 		current_process = NULL;
 		if (process_queue == NULL && process_queue_rt == NULL && process_waiting_rt == NULL) { 
 			__disable_irq();
-		  return 0; 
+			return 0; 
 		}	/* No processes left */
-		else {
+			else {
 			if(process_queue_rt != NULL){ //check if there are processes on the real time queue
 				PIT->CHANNEL[0].TCTRL = 1; // Disable PIT0
 				__enable_irq(); // Enable global interrupts
@@ -246,55 +242,55 @@ unsigned int process_select(unsigned int cursp) {
  *Function for Lab 5
  *-----------------------------------------*/
 
-realtime_t* add(realtime_t *one, realtime_t*two){
-	
-	realtime_t* sum;
-	
-	if(one->msec+two->msec>999){
-		sum->msec= (one->msec + two->msec) -1000;
-		sum->sec+=1;
-	}else{
-		sum->msec = one->msec + two->msec;
-	}
-	sum->sec=one->sec+two->sec;
-	
-	
-	return sum;
-	
-}	
-int process_rt_create(void (*f)(void), int n, realtime_t *start, realtime_t *work, realtime_t *deadline){
+ realtime_t* add(realtime_t *one, realtime_t*two){
+
+ 	realtime_t* sum;
+
+ 	if(one->msec+two->msec>999){
+ 		sum->msec= (one->msec + two->msec) -1000;
+ 		sum->sec+=1;
+ 	}else{
+ 		sum->msec = one->msec + two->msec;
+ 	}
+ 	sum->sec=one->sec+two->sec;
+
+
+ 	return sum;
+
+ }	
+ int process_rt_create(void (*f)(void), int n, realtime_t *start, realtime_t *work, realtime_t *deadline){
 	//task requres "work" miliseconds to complete (estimate of worst case execution time)
 	//relative deadline of "deadline" miliseconds
 	//n is the stack size for the task.
-	
-	
+
+
 	//stuff below taken from process_create
-	process_t* new_proc = (process_t*) malloc(sizeof(process_t));
+ 	process_t* new_proc = (process_t*) malloc(sizeof(process_t));
 	if (new_proc == NULL) { return -1; }	/* malloc failed */
-	
+
 	/* Allocate and initialize stack space for process */
 	//new_proc = (process_t*) our_malloc(sizeof(process_t)/4);
-	new_proc->sp = process_init(f, n);
-	
+ 	new_proc->sp = process_init(f, n);
+
 	if (new_proc->sp == 0) { return -1; }	/* process_init failed */
-	
+
 	/* Add new process to process queue */
-	new_proc->next = NULL;
-	
+ 	new_proc->next = NULL;
+
 	//setting arrival_time
-	
-	new_proc->arrival_time=start;
+
+ 	new_proc->arrival_time=start;
 
 	//setting deadline
 	//Adding this wrong, what if the combined millisecs are too high? 
-	new_proc->deadline=add(deadline,new_proc->arrival_time);
-	if(start->msec==0 && start->sec==0){
-	add_to_tail(&process_queue_rt,new_proc,new_proc->deadline);
-	}else{	
-	add_to_tail(&process_waiting_rt, new_proc, new_proc->arrival_time);
-	}
+ 	new_proc->deadline=add(deadline,new_proc->arrival_time);
+ 	if(start->msec==0 && start->sec==0){
+ 		add_to_tail(&process_queue_rt,new_proc,new_proc->deadline);
+ 	}else{	
+ 		add_to_tail(&process_waiting_rt, new_proc, new_proc->arrival_time);
+ 	}
 	return 0;	/* Successfully created process and bookkeeping */
 	//end stuff taken from process_create
-	
-	
-}
+
+
+ }

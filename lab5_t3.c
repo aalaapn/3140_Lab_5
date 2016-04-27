@@ -1,5 +1,5 @@
 /*************************************************************************
- * Lab 5 Test for 2 real time procesess with different start times but same deadlines
+ * Lab 5 Test for 2 real time procesess with different start times but different deadlines
  * 
  ************************************************************************/
  
