@@ -7,6 +7,7 @@
  
 #include "utils.h"
 #include "3140_concur.h"
+#define NRT_STACK 80
 
 /*------------------*/
 /* Helper functions */

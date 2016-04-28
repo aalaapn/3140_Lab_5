@@ -1,5 +1,5 @@
 /*************************************************************************
- * Lab 5 Test for 2 real time procesess with different start times but different deadlines
+ * Lab 5 Test for 2 real time procesess with different start times but same deadlines
  * 
  ************************************************************************/
  
@@ -24,14 +24,14 @@
 
 /* Constants used for 'work' and 'deadline's */
 realtime_t t_1msec = {0, 1};
-realtime_t t_2msec = {0, 2;
+realtime_t t_2msec = {0, 2};
 realtime_t t_10sec = {10, 0};
 
 /* Process start time */
 realtime_t t_pRT1 = {0, 0};
 
 /* Process start time */
-realtime_t t_pRT2 = {1, 1};
+realtime_t t_pRT2 = {0, 1};
  
 /*------------------*/
 /* Helper functions */

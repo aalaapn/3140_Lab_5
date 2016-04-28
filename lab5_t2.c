@@ -80,7 +80,7 @@ int main(void) {
 	LED_Initialize();
 
     /* Create processes */ 
-    if (process_rt_create(pRT2, RT_STACK, &t_pRT2, &t_10sec, &t_1msec) < 0) { return -1; } 
+    if (process_rt_create(pRT2, RT_STACK, &t_pRT2, &t_10sec, &t_10sec) < 0) { return -1; } 
     if (process_rt_create(pRT1, RT_STACK, &t_pRT1, &t_10sec, &t_1msec) < 0) { return -1; } 
    
     /* Launch concurrent execution */
