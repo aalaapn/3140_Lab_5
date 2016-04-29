@@ -189,7 +189,8 @@ void PIT1_IRQHandler(void)
 	
 	if(process_waiting_rt!=NULL){
 	process_t* process= take_from_head(&process_waiting_rt);
-	if((process->arrival_time->msec+ process->arrival_time->sec*1000)<(current_time->msec+current_time->sec*1000)){
+	//current time greater than arival time
+	if((process->arrival_time->msec+ process->arrival_time->sec*1000)>(current_time->msec+current_time->sec*1000)){
 	add_to_tail(&process_queue_rt,process,process->deadline);
 	}else{
 	add_to_tail(&process_waiting_rt,process,process->arrival_time);
