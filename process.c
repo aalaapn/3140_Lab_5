@@ -58,22 +58,8 @@ void add_to_tail(process_t** head_ref, process_t* p, realtime_t *deadline) {
 			current->next = p;
 		}
 		else{
-			if(current->next==NULL){
-			current->next=NULL;
-			}
-			/*Realtime Process*/
-			else if(current->next==NULL && ((current->deadline->msec+current->deadline->sec*1000)>(deadline->msec+deadline->sec*1000))){
-			*head_ref=p;
-			temp=current;
-			current=p;
-			current->next=temp;
-			}
-			else if(current->next==NULL && ((current->deadline->msec+current->deadline->sec*1000)<(deadline->msec+deadline->sec*1000))){
-			current->next=p;
-			p->next=NULL;
-			}
-			
-			else if (current->next!=NULL){
+	
+			if(current->next!=NULL){
 				
 				while(current->next !=NULL && ((current->deadline->msec+current->deadline->sec*1000) < (current->next->deadline->msec+current->next->deadline->sec*1000))){
 				current = current->next;
@@ -148,7 +134,7 @@ void process_start(void) {\
 	/* Set up Timer A (triggers context switch) */
 	SIM->SCGC6 |= SIM_SCGC6_PIT_MASK; // CLOCK PIT
 	PIT->MCR = 0x0;	// turn on PIT
-	PIT->CHANNEL[0].LDVAL = 0x0100000;
+	PIT->CHANNEL[0].LDVAL = 0x10000;
 	PIT->CHANNEL[0].TCTRL  = 3; //|= (1 << 28) | (1<<29) | (1<<30);	
 	
 	/*Set up Timer B (tracks real time elapsed*/
@@ -189,8 +175,7 @@ void PIT1_IRQHandler(void)
 	
 	if(process_waiting_rt!=NULL){
 	process_t* process= take_from_head(&process_waiting_rt);
-	//current time greater than arival time
-	if((process->arrival_time->msec+ process->arrival_time->sec*1000)>(current_time->msec+current_time->sec*1000)){
+	if((process->arrival_time->msec+ process->arrival_time->sec*1000)<(current_time->msec+current_time->sec*1000)){
 	add_to_tail(&process_queue_rt,process,process->deadline);
 	}else{
 	add_to_tail(&process_waiting_rt,process,process->arrival_time);
@@ -222,7 +207,7 @@ unsigned int process_select(unsigned int cursp) {
 	*/
 	/* cursp==0 -> No process currently running */
 	
-	
+	process_t* temp2;
 	
 	if (cursp == 0) {	
 		if(current_process->deadline != NULL){
@@ -258,18 +243,41 @@ unsigned int process_select(unsigned int cursp) {
 	/* cursp != 0 -> Some running process was interrupted */
 	else {
 		if(current_process->deadline!=NULL){
+			/*realtime process interrupted*/
+			
 			current_process->sp=cursp;
 			
-			
-			
+	
 			PIT->CHANNEL[0].TCTRL = 1; // Disable PIT0
 				__enable_irq(); // Enable global interrupts
-			add_to_tail(&process_queue_rt, current_process, current_process->deadline);
-			current_process=take_from_head(&process_queue_rt);
-			__disable_irq();
-				PIT->CHANNEL[0].TCTRL = 3; // Enable PIT0
 			
-		 return current_process->sp;
+			
+			temp2= take_from_head(&process_queue_rt);
+			
+			if(temp2!=NULL){
+			if((temp2->deadline->msec+temp2->deadline->sec*1000)>(current_process->deadline->msec+current_process->deadline->sec*1000)){
+				//temp deadline later
+				add_to_tail(&process_queue_rt,temp2,temp2->deadline);
+				//free(temp);
+				__disable_irq();
+				PIT->CHANNEL[0].TCTRL = 3; // Enable PIT0
+				
+				return current_process->sp;	
+			
+			}else{
+				//temp deadline earlier
+				add_to_tail(&process_queue_rt, current_process, current_process->deadline);
+				current_process=temp2;
+				//free(temp);
+				__disable_irq();
+				PIT->CHANNEL[0].TCTRL = 3; // Enable PIT0
+				
+				return temp2->sp;
+			}	
+		}else{
+				//queue is null
+			return current_process->sp;
+		}
 		}else{
 		/* Save running process SP and add back to process queue to run later */
 		current_process->sp = cursp;
