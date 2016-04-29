@@ -1,5 +1,6 @@
 /*************************************************************************
- * Lab 5 Test for 2 real time procesess with different start times but same deadlines
+ * Lab 5 Test for 2 real time procesess with different start times and different deadlines
+ * purpose is to see if the realtime process queue works with multiple processes
  * 
  ************************************************************************/
  
